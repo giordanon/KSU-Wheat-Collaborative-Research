@@ -48,13 +48,14 @@ data.frame(
 df
 ```
 
+## KS MESONET
+
 Mesonet has a complex syntax on the URL to access. Getting weather data is subject to human error if we write this link manually.
 
 Here is an example:
 
 'https://mesonet.k-state.edu/rest/stationdata/?stn=Ashland%20Bottoms&int=day&t_start=20201013000000&t_end=20210621000000&vars=TEMP2MMIN,TEMP2MMAX,PRECIP,VPDEFAVG,SR,WSPD2MAVG,PRESSUREAVG'
 
-## KS MESONET
 
 ```{r}
 URL_ = "https://mesonet.k-state.edu/rest/stationdata/"
