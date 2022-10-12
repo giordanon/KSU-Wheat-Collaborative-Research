@@ -56,7 +56,6 @@ Here is an example:
 
 'https://mesonet.k-state.edu/rest/stationdata/?stn=Ashland%20Bottoms&int=day&t_start=20201013000000&t_end=20210621000000&vars=TEMP2MMIN,TEMP2MMAX,PRECIP,VPDEFAVG,SR,WSPD2MAVG,PRESSUREAVG'
 
-
 ```{r}
 URL_ = "https://mesonet.k-state.edu/rest/stationdata/"
 INTERVAL = "&int=day"
@@ -64,7 +63,7 @@ VARIABLES = "&vars=TEMP2MMIN,TEMP2MMAX,PRECIP,VPDEFAVG,SR,WSPD2MAVG,PRESSUREAVG"
 
 # Run GET MESONET
 df_mesonet = get_mesonet(df)
-
+head(df_mesonet)
 ```
 
 ## Interpolation of missing values and ET0 estimation
@@ -101,10 +100,13 @@ df %>%
                           sealvl = ALT,
                           vpd = VPDEFAVG)
   )
+head(df_interpol)
 ```
 
 # Weather summaries MESONET
 
 ```{r}
-weather_summaries_MESONET(data = df_interpol)
+df_summaries = weather_summaries_MESONET(data = df_interpol)
+
+head(df_summaries)
 ```
