@@ -1,4 +1,28 @@
+## Set a theme
+theme = theme(axis.title.y = element_text(size = rel(2.5), angle = 90), 
+              axis.title.x = element_text(size = rel(2.5)), 
+              #axis.text.x = element_text(hjust = 0.5, angle = 90, size=rel(2.0)), 
+              #axis.text.y = element_text(hjust = 1, size=rel(2.0)), 
+              axis.ticks = element_line(size = 0.7),
+              axis.ticks.length = unit(0.4, "cm"),
+              panel.background = element_rect(fill = "white",
+                                              colour = "black",
+                                              size = 0.5, linetype = "solid"),
+              strip.text.x = element_text(size = 20),
+              axis.text.y = element_text(hjust = 1, size=rel(2)), 
+              axis.text.x = element_text(hjust = 0.5, angle = 0,  size=rel(2)),
+              strip.background =element_rect(fill="white"),
+              panel.border = element_rect(colour = "black", fill=NA),
+              legend.title=element_text(size=rel(2.0)),
+              legend.text=element_text(size=rel(2.0)), 
+              #legend.position = c(0.15, 0.80),
+              legend.background = element_rect(fill = "white", color = "black"), 
+              #legend.position = 'top', 
+              #legend.direction = "horizontal", 
+              #legend.box = "horizontal"
+)
 
+##ETO Penman Montheit estimation
 eto.penmon = function(tmax, tmin, wind_speed, solar_radiation, atm_pr, doy, lat, sealvl, vpd ){
   
   
@@ -48,6 +72,7 @@ eto.penmon = function(tmax, tmin, wind_speed, solar_radiation, atm_pr, doy, lat,
   return(eto)
 }
 
+# Get mesonet 
 get_mesonet = function(data){
   data %>% 
     mutate_at(vars(ANTHESIS:HARVEST), ~as.Date(., format = '%m/%d/%Y')) %>% 
@@ -78,26 +103,65 @@ get_mesonet = function(data){
            ) 
 }
 
-theme = theme(axis.title.y = element_text(size = rel(2.5), angle = 90), 
-              axis.title.x = element_text(size = rel(2.5)), 
-              #axis.text.x = element_text(hjust = 0.5, angle = 90, size=rel(2.0)), 
-              #axis.text.y = element_text(hjust = 1, size=rel(2.0)), 
-              axis.ticks = element_line(size = 0.7),
-              axis.ticks.length = unit(0.4, "cm"),
-              panel.background = element_rect(fill = "white",
-                                              colour = "black",
-                                              size = 0.5, linetype = "solid"),
-              strip.text.x = element_text(size = 20),
-              axis.text.y = element_text(hjust = 1, size=rel(2)), 
-              axis.text.x = element_text(hjust = 0.5, angle = 0,  size=rel(2)),
-              strip.background =element_rect(fill="white"),
-              panel.border = element_rect(colour = "black", fill=NA),
-              legend.title=element_text(size=rel(2.0)),
-              legend.text=element_text(size=rel(2.0)), 
-              #legend.position = c(0.15, 0.80),
-              legend.background = element_rect(fill = "white", color = "black"), 
-              #legend.position = 'top', 
-              #legend.direction = "horizontal", 
-              #legend.box = "horizontal"
-)
-
+# Weather summaries
+weather_summaries_MESONET = function(data, tminCP = 4.5, tminGF = 0, 
+                                     minGDU_CP = 300, maxGCU_CP = 100, 
+                                     minGDU_GF = 100, maxGCU_GF = 600)
+  {
+  
+  
+  VARS_SUM = c("PP", "Tmean", "Duration", "PQ", "VPD", "cumET0")
+  
+  out = 
+    data %>% 
+    mutate(Tmean = (TEMP2MMIN + TEMP2MMAX)/2, 
+           #Critical period growing degree units
+           gmin = case_when(TEMP2MMIN >= tminCP ~ TEMP2MMIN, 
+                            TRUE ~ tminCP),
+           # Tmax threshold Growing Degrees.
+           gmax = case_when(#TEMP2MMAX <= 27 & 
+             TEMP2MMAX >= tminCP ~ TEMP2MMAX,
+             TEMP2MMAX <= tminCP ~ tminCP,
+             TRUE ~ 99999),
+           # Daily Growing Degree Units.
+           gdu_ant = case_when( ((gmin + gmax)/2) - tminCP <= tminCP ~ tminCP,
+                                TRUE ~ ((gmin + gmax)/2) - tminCP),
+           #Grain Filling period growing degree units
+           gmin_gf = case_when(TEMP2MMIN >= tminGF ~ TEMP2MMIN, 
+                               TRUE ~ tminGF), 
+           gmax_gf = case_when(#TEMP2MMAX <= 27 &
+             TEMP2MMAX >= tminGF ~ TEMP2MMAX,
+             TEMP2MMAX <= tminGF ~ tminGF,
+             TRUE ~ 999999),
+           gdu_gf = case_when( ((gmin_gf + gmax_gf)/2) - tminGF <= tminGF ~ tminGF,
+                               TRUE ~ ((gmin_gf + gmax_gf)/2) - tminGF) ) %>% 
+    group_by(LOCATION, GENOTYPE) %>% 
+    mutate(ANTHESIS = ANTHESIS + MATURITY) %>% 
+    nest(weather = -group_cols()) %>% 
+    mutate(weather = weather %>% map(~.x %>% mutate(condition = case_when(TIMESTAMP >= ANTHESIS ~ 1,T ~ 0)) %>%
+                                       # FROSTS EVENTS CP - T = 0C
+                                       group_by(condition) %>% 
+                                       mutate(accum_gdu = ifelse(condition == 0,  rev(cumsum(rev(gdu_ant))), cumsum(gdu_ant)),
+                                              PERIOD = case_when(condition == 0 & accum_gdu <= minGDU_CP | condition == 1 & accum_gdu <= maxGCU_CP ~ "CP",
+                                                                 condition == 1 & accum_gdu >= minGDU_GF & accum_gdu <= maxGCU_GF ~ "GF", T~ NA_character_) ) %>% 
+                                       drop_na(PERIOD) %>% 
+                                       group_by(ANTHESIS, PERIOD) %>%
+                                       mutate(ndays = n(), 
+                                              ET = PENMON_eto)
+                                     %>% 
+                                       summarise_at(vars(TEMP2MMIN, TEMP2MMAX, VPDEFAVG, ET, Tmean, PRECIP, ndays, SR, gdu_ant, gdu_gf),
+                                                    list(mean = ~mean(., na.rm=T), 
+                                                         sum = ~sum(.) ))  %>% 
+                                       mutate(PQ = SR_sum/ case_when(PERIOD == "CP"~ gdu_ant_sum,
+                                                                     PERIOD == "GF"~ gdu_gf_sum), 
+                                              cumET0 = ET_sum, 
+                                              VPD = VPDEFAVG_mean,
+                                              Duration = ndays_mean, 
+                                              Tmean = Tmean_mean,
+                                              PP = PRECIP_sum) %>% 
+                                       dplyr::select(PERIOD, ANTHESIS, all_of(VARS_SUM)) %>%
+                                       pivot_wider(names_from = PERIOD, values_from = c(PP:ncol(.)))  )) %>% 
+    unnest(cols = weather) %>% 
+    ungroup()
+  return(out)
+  }
