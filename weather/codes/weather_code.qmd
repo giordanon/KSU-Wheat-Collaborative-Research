@@ -50,6 +50,8 @@ df
 
 ## KS MESONET
 
+***Kansas Mesonet, 2017: Kansas Mesonet Historical Data. Accessed DD MM YYYY, http://mesonet.k-state.edu/weather/historical***
+
 Mesonet has a complex syntax on the URL to access. Getting weather data is subject to human error if we write this link manually.
 
 Here is an example:
