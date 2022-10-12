@@ -7,6 +7,8 @@ editor: visual
 
 # Get Weather Summaries from API
 
+Introduce some changes
+
 This functions will allow you to:
 
 -   Get weather summaries from different API
