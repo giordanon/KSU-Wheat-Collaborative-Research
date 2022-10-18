@@ -22,9 +22,9 @@ theme = theme(axis.title.y = element_text(size = rel(2.5), angle = 90),
               #legend.box = "horizontal"
 )
 
-##ETO Penman Montheit estimation
+## ETO Penman Montheit estimation
+
 eto.penmon = function(tmax, tmin, wind_speed, solar_radiation, atm_pr, doy, lat, sealvl, vpd ){
-  
   
   tmean = (tmax + tmin) / 2
   
