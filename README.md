@@ -8,11 +8,9 @@ Dr. Romulo P Lollato
 
 Ing. Agr. Nicolas Giordano
 
-Luke Ryan 2
-
 ...
 
-Coding in R topics to cover
+**Coding in R topics to cover**
 
 1.  Weather summaries from API
 2.  Bootstrapping with tidyverse

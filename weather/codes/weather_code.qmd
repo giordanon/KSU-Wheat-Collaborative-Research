@@ -17,9 +17,11 @@ This functions will allow you to:
 
 -   Use Penmann - Montheith ecuation for estimation ET0 with the least data from MESONET
 
--   Plot your weather data
-==
-## Load Packages
+-   
+
+    # Plot your weather data
+
+    ## Load Packages
 
 ```{r}
 library(tidyverse) # Data Wrangling and iteration
@@ -38,7 +40,7 @@ source("weather_functions.R")
 df = 
 data.frame(
   LOCATION = c("AB","AB","HUT","HUT"), 
-  LOCATION_MESONET = c("Ashland%20Bottoms","Ashland%20Bottoms", "Hutchinson%2010SW","Hutchinson%2010SW"),
+  LOCATION_MESONET = c("Ashland Bottoms","Ashland Bottoms", "Hutchinson 10SW","Hutchinson 10SW"),
   ANTHESIS = c("05/12/2021","05/12/2021", "05/08/2021", "05/08/2021"), 
   SOWING = c("10/12/2020", "10/12/2020", "10/08/2020", "10/08/2020"), 
   HARVEST = c("07/10/2021","07/10/2021","06/25/2021", "06/25/2021"),
@@ -47,7 +49,7 @@ data.frame(
   LAT = c(37.00,37.00, 37.20, 37.20), 
   ALT = c(300, 350)
 )
-df
+df %>% write.csv("../weather_input.csv")
 ```
 
 ## KS MESONET

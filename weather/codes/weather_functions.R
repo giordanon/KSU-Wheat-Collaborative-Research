@@ -81,16 +81,18 @@ get_mesonet = function(data){
     group_by_at(vars(LOCATION:HARVEST)) %>% 
     nest() %>% 
     #Contruct a URL to access MESONET
-    mutate(URL = paste0(# Location
-      URL_, "?stn=", LOCATION_MESONET, 
-      # Interval
-      INTERVAL, 
-      # Start Date
-      "&t_start=", SOWING, "000000", 
-      # Harvest
-      "&t_end=", HARVEST, "000000", 
-      #Variables to retrieve
-      VARIABLES)
+    mutate(
+      LOCATION_MESONET = str_replace(LOCATION_MESONET, " ", "%20"),
+      URL = paste0(# Location
+        URL_, "?stn=", LOCATION_MESONET, 
+        # Interval
+        INTERVAL, 
+        # Start Date
+        "&t_start=", SOWING, "000000", 
+        # Harvest
+        "&t_end=", HARVEST, "000000", 
+        #Variables to retrieve
+        VARIABLES)
     ) %>% 
     # Get Mesonet
     mutate(mesonet = list(read.csv(URL))) %>% 
