@@ -82,7 +82,7 @@ get_mesonet = function(data){
     nest() %>% 
     #Contruct a URL to access MESONET
     mutate(
-      LOCATION_MESONET = str_replace(LOCATION_MESONET, " ", "%20"),
+      LOCATION_MESONET = str_replace_all(LOCATION_MESONET, " ", "%20"),
       URL = paste0(# Location
         URL_, "?stn=", LOCATION_MESONET, 
         # Interval
