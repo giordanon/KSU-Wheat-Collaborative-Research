@@ -1,0 +1,42 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+```{r message = F}
+library(readxl)
+library(tidyverse)
+library(sp)
+```
+
+```{r}
+plots <- read_xlsx("Plot map template.xlsx", range = "M1:AP53") %>% 
+  filter_all(all_vars(str_detect(.,"-|FILL")))
+```
+
+```{r}
+# create a 3 x 3 matrix
+m <- matrix(1:9, nrow = 3, ncol = 3)
+
+# create an empty sf data frame with a polygon column
+polys <- st_sf(ID = 1:length(m))
+
+test <- plots[1,1]
+x<-0
+coords <- matrix(c(x, x, x+2, x+2, x), ncol = 2, byrow = TRUE)
+st_polygon(test)
+
+# loop over each matrix element and create a polygon
+for (i in 1:length(m)) {
+  x <- (i - 1) %% ncol(m)  # row index
+  y <- (i - 1) %% ncol(m)  # column index
+  coords <- matrix(c(x, x, x+2, x+2, x), ncol = 2, byrow = TRUE)
+  poly <- st_polygon(list(coords))
+  polys$polygons[[i]] <- poly
+}
+
+# plot the polygons
+plot(polys)
+```
+
