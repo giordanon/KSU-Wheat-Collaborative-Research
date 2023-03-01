@@ -4,39 +4,75 @@ format: html
 editor: visual
 ---
 
-```{r message = F}
+```{r message = F, warning = F}
 library(readxl)
 library(tidyverse)
-library(sp)
+library(sf)
 ```
 
 ```{r}
-plots <- read_xlsx("Plot map template.xlsx", range = "M1:AP53") %>% 
-  filter_all(all_vars(str_detect(.,"-|FILL")))
+# latitude
+lldata <- tibble(lat=as.numeric(rep(seq(40,49.5),10)))
+
+
+# Longitude + add data
+lldata <- lldata %>%  
+          group_by(lat) %>%  
+          mutate(lon = -90 + row_number()-1,
+                 data = runif(1))
+
+#Plot the grid as points
+lldata %>% 
+  ggplot() + 
+  geom_point(aes(x=lon,y=lat,color=data))
+
+lldata <- tibble(lat = as.numeric(rep(seq(40, 49.5), 10))) %>%  
+  group_by(lat) %>%  
+  mutate(lon = -90 + row_number() - 1,
+         data = runif(1)) %>% 
+  ungroup() %>% 
+  st_as_sf(coords = c("lon", "lat")) 
+
+lldata_poly <- lldata %>% 
+  st_make_grid(cellsize = 1, offset = c(-90.5, 39.5)) %>% 
+  st_as_sf() %>% 
+  st_join(lldata)
+
+# plot
+ggplot() +
+  geom_sf(data = lldata_poly, aes(fill = data)) +
+  geom_sf(data = lldata)
+
+mapview::mapview(lldata_poly)
+
 ```
 
 ```{r}
-# create a 3 x 3 matrix
-m <- matrix(1:9, nrow = 3, ncol = 3)
+plots <- read_xlsx("Plot map template.xlsx", range = "M1:AP53") 
 
-# create an empty sf data frame with a polygon column
-polys <- st_sf(ID = 1:length(m))
-
-test <- plots[1,1]
-x<-0
-coords <- matrix(c(x, x, x+2, x+2, x), ncol = 2, byrow = TRUE)
-st_polygon(test)
-
-# loop over each matrix element and create a polygon
-for (i in 1:length(m)) {
-  x <- (i - 1) %% ncol(m)  # row index
-  y <- (i - 1) %% ncol(m)  # column index
-  coords <- matrix(c(x, x, x+2, x+2, x), ncol = 2, byrow = TRUE)
-  poly <- st_polygon(list(coords))
-  polys$polygons[[i]] <- poly
-}
-
-# plot the polygons
-plot(polys)
+plots_w <- plots %>% 
+  filter_all(all_vars(str_detect(.,"-|FILL"))) %>% 
+  pivot_longer(cols= c(...1:ncol(.)))
 ```
+
+```{r}
+# The field shape is needed to cut off lines within the shape of the field
+field <- read_sf("boundary.shp")
+# Create a line object in EPSG:4326
+line <- st_transform(read_sf("linestring.shp"), crs = 3857)
+line <- line$geometry
+# Plot length
+plot_length = 2*7.67/111320
+# plot width
+width <- 6*0.303
+# Distance between field boundaries
+passes <- 50
+# Offset path
+offset_path <- 0
+
+nico <- parallel_lines(line, width, field, offset_path, passes = 50, clip = FALSE)
+mapview::mapview(nico)
+```
+
+
 
