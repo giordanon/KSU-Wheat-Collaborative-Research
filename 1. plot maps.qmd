@@ -30,10 +30,9 @@ field <- read_sf("boundary.shp")
 # Create a line object in EPSG:4326
 line <- st_transform(read_sf("linestring.shp"), crs = 3857)
 line <- line$geometry
-# Plot length
-plot_length = 2*7.67/111320
+
 # plot width
-width <- 12*0.303
+width <- 18*0.303
 # Distance between field boundaries
 nr_pass <- ncol(plots)
 # Offset path
@@ -66,7 +65,7 @@ plots_center <- sf::st_sfc(do.call(rbind, plots_shapes$plots_center), crs = sf::
 
 plots_center <- st_transform(plots_center, 4326)
 
-write_sf(plots_center, "plots_center2.shp")
+#write_sf(plots_center, "plots_center2.shp")
 ```
 
 
@@ -74,24 +73,69 @@ Merge shape files and plot features
 
 ```{r}
 
-
-test <- plots_center %>% st_cast("POINT") %>% 
+# Add range and pass
+plots_shapefile <- plots_center %>% st_cast("POINT") %>% 
   st_as_sf() %>% 
   cbind(range = rep(seq(1,ranges), nr_pass),
         pass = unlist(map(seq(1,nr_pass), ~rep(.,ranges)))
-        )
+        ) %>% 
+  mutate_at(vars(pass, range), ~as.integer(.))
 
-st_crs(test) <- st_crs("+proj=longlat +datum=WGS84")
-mapview::mapview(test)
+st_crs(plots_shapefile) <- st_crs("+proj=longlat +datum=WGS84")
 
-as.data.frame(test$x) %>% 
-  cbind(range = rep(seq(1,ranges), nr_pass),
-        pass = unlist(map(seq(1,nr_pass), ~rep(.,ranges)))
-        )
+# Merge
+out <- full_join(plots_w, plots_shapefile) %>% 
+   st_as_sf()
 
-
+st_crs(out) <- st_crs("+proj=longlat +datum=WGS84") 
 
 
-  
+mapview::mapview(out)
+```
+
+Draw a polygon surrounding each point
+
+```{r}
+library(sf)
+
+
+
+# create a sample point
+point <- out$x[[1]]
+
+# set the dimensions of the rectangle
+width # meters
+# Plot length
+plot_length = 25 * 0.3048
+
+
+
+# calculate the coordinates of the corners of the rectangle
+x_min <- st_coordinates(point)[, 1] - (width / 2)
+x_max <- st_coordinates(point)[, 1] + (width / 2)
+y_min <- st_coordinates(point)[, 2] - (plot_length / 2)
+y_max <- st_coordinates(point)[, 2] + (plot_length / 2)
+
+# create a matrix with the coordinates of the corners
+coords <- matrix(c(x_min, y_min,
+                   x_max, y_min,
+                   x_max, y_max,
+                   x_min, y_max,
+                   x_min, y_min), 
+                 ncol = 2, byrow = TRUE)
+
+# create an sf polygon object
+polygon <- st_polygon(list(coords))
+
+# create an sf object with the polygon
+polygon_sf <- st_sfc(polygon)
+
+# set the projection of the sf object to the same as the point
+st_crs(polygon_sf) <- st_crs("+proj=longlat +datum=WGS84") 
+
+# plot the polygon
+plot(polygon_sf, main = "Rectangle centered on a point")
+
+mapview::mapview(polygon_sf)
 ```
 
