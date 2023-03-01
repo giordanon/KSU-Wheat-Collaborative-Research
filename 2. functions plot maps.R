@@ -8,12 +8,14 @@ calc_angle <- function(x, y) {
   return(atan2(dst_diff[1], dst_diff[2]) + pi)
 }
 
-parallel_lines <- function(line, width, field, offset_path = 0, passes = 50, clip = FALSE) {
+parallel_lines <- function(line, width, field, offset_path = 0, p, clip = FALSE) {
+  
   
   cl <- sf::st_coordinates(line)[, 1:2]
   angle <- calc_angle(cl[1, ], cl[nrow(cl), ]) + pi / 2
-  #n <- ceiling(max_dist / width)
-  nl <- map(seq(0, n), simplify = FALSE, ~sf::st_geometry(line) + (offset_path + .) * width * c(sin(angle), cos(angle)))
+
+  nl <- map(seq(0, # might be 1 or 0 need to check with field data
+                p-1), simplify = FALSE, ~sf::st_geometry(line) + (offset_path + .) * width * c(sin(angle), cos(angle)))
   
   path_lines <- sf::st_sfc(do.call(rbind, nl), crs = sf::st_crs(line))
   

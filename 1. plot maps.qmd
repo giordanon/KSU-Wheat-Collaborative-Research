@@ -11,48 +11,17 @@ library(sf)
 ```
 
 ```{r}
-# latitude
-lldata <- tibble(lat=as.numeric(rep(seq(40,49.5),10)))
+plots <- read_xlsx("Plot map template.xlsx", range = "M1:AP53") %>% 
+  filter_all(all_vars(str_detect(.,"-|FILL")))
 
+plots <- plots[1:5, 1:5]
 
-# Longitude + add data
-lldata <- lldata %>%  
-          group_by(lat) %>%  
-          mutate(lon = -90 + row_number()-1,
-                 data = runif(1))
-
-#Plot the grid as points
-lldata %>% 
-  ggplot() + 
-  geom_point(aes(x=lon,y=lat,color=data))
-
-lldata <- tibble(lat = as.numeric(rep(seq(40, 49.5), 10))) %>%  
-  group_by(lat) %>%  
-  mutate(lon = -90 + row_number() - 1,
-         data = runif(1)) %>% 
-  ungroup() %>% 
-  st_as_sf(coords = c("lon", "lat")) 
-
-lldata_poly <- lldata %>% 
-  st_make_grid(cellsize = 1, offset = c(-90.5, 39.5)) %>% 
-  st_as_sf() %>% 
-  st_join(lldata)
-
-# plot
-ggplot() +
-  geom_sf(data = lldata_poly, aes(fill = data)) +
-  geom_sf(data = lldata)
-
-mapview::mapview(lldata_poly)
-
-```
-
-```{r}
-plots <- read_xlsx("Plot map template.xlsx", range = "M1:AP53") 
-
-plots_w <- plots %>% 
-  filter_all(all_vars(str_detect(.,"-|FILL"))) %>% 
-  pivot_longer(cols= c(...1:ncol(.)))
+plots_w <- plots %>%
+  rowid_to_column("range") %>% 
+  mutate(range = rev(range)) %>% 
+  pivot_longer(cols= c(...1:ncol(.)), 
+               names_to = "pass") %>% 
+  mutate(pass = as.integer(str_replace(pass,"...", "")))
 ```
 
 ```{r}
@@ -64,15 +33,65 @@ line <- line$geometry
 # Plot length
 plot_length = 2*7.67/111320
 # plot width
-width <- 6*0.303
+width <- 12*0.303
 # Distance between field boundaries
-passes <- 50
+nr_pass <- ncol(plots)
 # Offset path
 offset_path <- 0
 
-nico <- parallel_lines(line, width, field, offset_path, passes = 50, clip = FALSE)
-mapview::mapview(nico)
+# Run function to get each path
+passes <- parallel_lines(line, width, field, offset_path, p = nr_pass, F)
+
+```
+
+```{r}
+ranges <- nrow(plots)
+# Sample a point in each line
+plots_shapes<- 
+passes %>% 
+  mutate(plots_center = map(geometry, 
+                            ~st_line_sample(.,
+                                            n = ranges,
+                                            type = "regular")
+                            ),
+         plots_center = map(plots_center, 
+                            function(x){
+                              st_crs(x) <- st_crs("+proj=longlat +datum=WGS84")
+                              x
+                            })
+         )
+
+plots_center <- sf::st_sfc(do.call(rbind, plots_shapes$plots_center), crs = sf::st_crs("+proj=longlat +datum=WGS84"))
+
+
+plots_center <- st_transform(plots_center, 4326)
+
+write_sf(plots_center, "plots_center2.shp")
 ```
 
 
+Merge shape files and plot features
+
+```{r}
+
+
+test <- plots_center %>% st_cast("POINT") %>% 
+  st_as_sf() %>% 
+  cbind(range = rep(seq(1,ranges), nr_pass),
+        pass = unlist(map(seq(1,nr_pass), ~rep(.,ranges)))
+        )
+
+st_crs(test) <- st_crs("+proj=longlat +datum=WGS84")
+mapview::mapview(test)
+
+as.data.frame(test$x) %>% 
+  cbind(range = rep(seq(1,ranges), nr_pass),
+        pass = unlist(map(seq(1,nr_pass), ~rep(.,ranges)))
+        )
+
+
+
+
+  
+```
 
