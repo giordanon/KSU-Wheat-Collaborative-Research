@@ -8,11 +8,11 @@ editor: visual
 library(readxl)
 library(tidyverse)
 library(sf)
-source("2. functions plot maps.R")
+source("2.functions_maps.R")
 ```
 
 ```{r}
-plots <- read_xlsx("Plot map template.xlsx", range = "M1:AP53") %>% 
+plots <- read_xlsx("../Plot map template.xlsx", range = "M1:AP53") %>% 
   filter_all(all_vars(str_detect(.,"-|FILL")))
 
 plots <- plots[1:5, 1:5]
@@ -27,9 +27,9 @@ plots_w <- plots %>%
 
 ```{r}
 # The field shape is needed to cut off lines within the shape of the field
-field <- read_sf("boundary.shp")
+field <- read_sf("../shapes/boundary.shp")
 # Create a line object in EPSG:4326
-line <- st_transform(read_sf("linestring.shp"), crs = 3857)
+line <- st_transform(read_sf("../shapes/linestring.shp"), crs = 3857)
 line <- line$geometry
 
 # plot width
