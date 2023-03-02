@@ -8,6 +8,7 @@ editor: visual
 library(readxl)
 library(tidyverse)
 library(sf)
+library(lwgeom)
 source("2.functions_maps.R")
 ```
 
@@ -93,48 +94,194 @@ st_crs(out) <- st_crs("+proj=longlat +datum=WGS84")
 mapview::mapview(out)
 ```
 
+```{r}
+# Function for getting the plot length
+plot_length <- out[c(1,31),]
+
+pl <- 
+out %>% 
+  filter(range %in% c(1,2) & pass == 1)
+
+```
+
 Draw a polygon surrounding each point
 
 ```{r}
-library(sf)
+#' Function to create spatial polygons having the center of a plot and following an abline 
+#'
+#' This takes an a point which is the plot center and creates a polygon, which is the actual plot. 
+#' @param sf_obj of class 'sf' 
+#' @param abline of class 'sfc' which is the ab line of the field parallel to the passes
+#' @param inter_plot_space of class 'numeric' which is a coefficient that that restricts the plots size so they do not overlap
+#' @keywords Simple Features, sf
+#' @export
+#' @examples
+#' \dontrun{
+#'
+#' }
+
+create_polygons <- function(sf_obj, abline,inter_plot_space ){
+
+# Center of the plot
+plot_center <- sf_obj$x[[1]]
+
+# Distance between two consecutive points within a single pass, equal to the plot length
+plot_length <- sf_obj %>% 
+  filter(range %in% c(1,2) & pass == 1)
+
+cl <- sf::st_coordinates(line)[, 1:2]
+angle <- calc_angle(cl[1, ], cl[nrow(cl), ]) + pi / 2
 
 
 
-# create a sample point
-point <- out$x[[1]]
 
-# set the dimensions of the rectangle
-width # meters
-# Plot length
-plot_length = 25 * 0.3048
+# half of the plot length
+len2 <- calc_distance(plot_length, max = F)[1]/2 * inter_plot_space
+# half of the plot width
+w2 <- len2/2
+# diagonal distance between plot center and corner of the plot
+h <- sqrt(w2^2+len2^2)
+# Heading angle of the line
+attr(abline, "angle") <- angle
+
+
+corner_points <- function()
+
+# calculate the change in x and y coordinates
+dy <- dist * cos(pi/4 + attr(abline, "angle") * pi/180)
+dx <- dist * sin(pi/4 + attr(abline, "angle") * pi/180)
+
+# create a new point object with the calculated coordinates
+new_pt <- st_point(c(st_coordinates(plot_center)[1] + dx, 
+                      st_coordinates(plot_center)[2] + dy))
+
+# create a new point object with the calculated coordinates
+new_pt1 <- st_point(c(st_coordinates(plot_center)[1] - dx, 
+                      st_coordinates(plot_center)[2] + dy))
+# create a new point object with the calculated coordinates
+new_pt2 <- st_point(c(st_coordinates(plot_center)[1] - dx, 
+                      st_coordinates(plot_center)[2] - dy))
+# create a new point object with the calculated coordinates
+new_pt3 <- st_point(c(st_coordinates(plot_center)[1] + dx, 
+                      st_coordinates(plot_center)[2] - dy))
+
+mp <- c(new_pt, new_pt1,new_pt2, new_pt3)
+
+pg <- st_cast(mp, "POLYGON")
+
+pg <- st_sfc(pg)
+
+st_crs(pg) <- st_crs("+proj=longlat +datum=WGS84") 
+
+return(pg)
+
+}
 
 
 
-# calculate the coordinates of the corners of the rectangle
-x_min <- st_coordinates(point)[, 1] - (width / 2)
-x_max <- st_coordinates(point)[, 1] + (width / 2)
-y_min <- st_coordinates(point)[, 2] - (plot_length / 2)
-y_max <- st_coordinates(point)[, 2] + (plot_length / 2)
-
-# create a matrix with the coordinates of the corners
-coords <- matrix(c(x_min, y_min,
-                   x_max, y_min,
-                   x_max, y_max,
-                   x_min, y_max,
-                   x_min, y_min), 
-                 ncol = 2, byrow = TRUE)
-
-# create an sf polygon object
-polygon <- st_polygon(list(coords))
-
-# create an sf object with the polygon
-polygon_sf <- st_sfc(polygon)
-
-# set the projection of the sf object to the same as the point
-st_crs(polygon_sf) <- st_crs("+proj=longlat +datum=WGS84") 
-
-# plot the polygon
-plot(polygon_sf, main = "Rectangle centered on a point")
-
-mapview::mapview(polygon_sf)
+mapview::mapView(pg)
 ```
+
+
+```{r}
+#' Function to create spatial polygons having the center of a plot and following an abline 
+#'
+#' This takes an a point which is the plot center and creates a polygon, which is the actual plot. 
+#' @param sf_obj of class 'sf' 
+#' @param abline of class 'sfc' which is the ab line of the field parallel to the passes
+#' @param inter_plot_space of class 'numeric' which is a coefficient that that restricts the plots size so they do not overlap
+#' @keywords Simple Features, sf
+#' @export
+#' @examples
+#' \dontrun{
+#'
+#' }
+
+
+
+sf_obj <- out
+# Center of the plot
+plot_center <- sf_obj$x[[1]]
+
+# Distance between two consecutive points within a single pass, equal to the plot length
+plot_length <- sf_obj %>% 
+  filter(range %in% c(1,2) & pass == 1)
+
+
+pol <- 
+sf_obj %>% 
+  rename(plot_center = x) %>% 
+  mutate(plot_length = list(plot_length), 
+         polygon = pmap(list(..1 = plot_center, ..2 = plot_length), 
+                        ~st_sfc(corner_points(abline = line, plot_center = ..1,  plot_length = ..2, 1))
+                        ), 
+         #polygon = map(polygon, st_polygon) 
+         ) %>% 
+  as.data.frame() %>% 
+  dplyr::select(-plot_length, -plot_center) %>% 
+  rename(geometry = polygon)
+
+polygons_w <- st_sfc(do.call(rbind, pol$geometry))
+
+st_crs(polygons_w) <- st_crs("+proj=longlat +datum=WGS84")
+
+pol$geometry <- polygons_w
+
+pol <- st_as_sf(pol)
+
+mapview::mapview(pol)
+```
+
+
+```{r}
+corner_points <- function(abline,plot_center, plot_length, inter_plot_space ) {
+  
+cl <- sf::st_coordinates(abline)[, 1:2]
+angle <- calc_angle(cl[1, ], cl[nrow(cl), ]) + pi / 2
+
+# half of the plot length
+len2 <- calc_distance(plot_length, max = F)[1]/2 * inter_plot_space
+# half of the plot width
+w2 <- len2/2
+# diagonal distance between plot center and corner of the plot
+h <- sqrt(w2^2+len2^2)
+# Heading angle of the line
+attr(abline, "angle") <- angle
+
+# calculate the change in x and y coordinates
+dy <- w2 * cos(pi/4 + attr(abline, "angle") * pi/180)
+dx <- len2 * sin(pi/4 + attr(abline, "angle") * pi/180)
+
+# create a new point object with the calculated coordinates
+new_pt <- st_point(c(st_coordinates(plot_center)[1] + dx, 
+                      st_coordinates(plot_center)[2] + dy))
+
+# create a new point object with the calculated coordinates
+new_pt1 <- st_point(c(st_coordinates(plot_center)[1] - dx, 
+                      st_coordinates(plot_center)[2] + dy))
+# create a new point object with the calculated coordinates
+new_pt2 <- st_point(c(st_coordinates(plot_center)[1] - dx, 
+                      st_coordinates(plot_center)[2] - dy))
+# create a new point object with the calculated coordinates
+new_pt3 <- st_point(c(st_coordinates(plot_center)[1] + dx, 
+                      st_coordinates(plot_center)[2] - dy))
+
+mp <- c(new_pt, new_pt1,new_pt2, new_pt3)
+
+pg <- st_cast(mp, "POLYGON")
+
+pg <- st_sfc(pg)
+
+st_crs(pg) <- st_crs("+proj=longlat +datum=WGS84") 
+
+return(pg)
+
+}
+```
+
+```{r}
+mapview::mapView(corner_points(line, plot_length, 0.98))
+
+```
+
+
