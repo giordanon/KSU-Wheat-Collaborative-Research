@@ -8,6 +8,7 @@ editor: visual
 library(readxl)
 library(tidyverse)
 library(sf)
+source("2. functions plot maps.R")
 ```
 
 ```{r}
@@ -67,7 +68,6 @@ plots_center <- st_transform(plots_center, 4326)
 
 #write_sf(plots_center, "plots_center2.shp")
 ```
-
 
 Merge shape files and plot features
 
@@ -138,4 +138,3 @@ plot(polygon_sf, main = "Rectangle centered on a point")
 
 mapview::mapview(polygon_sf)
 ```
-
